@@ -245,6 +245,8 @@ class DocType(Document):
 		if self.name in frappe.local.meta_cache:
 			del frappe.local.meta_cache[self.name]
 
+		clear_linked_doctype_cache()
+
 	def delete_duplicate_custom_fields(self):
 		if not (frappe.db.table_exists(self.name) and frappe.db.table_exists("Custom Field")):
 			return
@@ -717,11 +719,7 @@ def validate_permissions(doctype, for_remove=False):
 		similar_because_of = ""
 		for p in permissions:
 			if p.role==d.role and p.permlevel==d.permlevel and p!=d:
-				if p.apply_user_permissions==d.apply_user_permissions:
-					has_similar = True
-					similar_because_of = _("Apply User Permissions")
-					break
-				elif p.if_owner==d.if_owner:
+				if p.if_owner==d.if_owner:
 					similar_because_of = _("If Owner")
 					has_similar = True
 					break
@@ -765,9 +763,7 @@ def validate_permissions(doctype, for_remove=False):
 			d.set("import", 0)
 			d.set("export", 0)
 
-		for ptype, label in (
-			("set_user_permissions", _("Set User Permissions")),
-			("apply_user_permissions", _("Apply User Permissions"))):
+		for ptype, label in [["set_user_permissions", _("Set User Permissions")]]:
 			if d.get(ptype):
 				d.set(ptype, 0)
 				frappe.msgprint(_("{0} cannot be set for Single types").format(label))
@@ -835,3 +831,6 @@ def check_if_fieldname_conflicts_with_methods(doctype, fieldname):
 
 	if fieldname in method_list:
 		frappe.throw(_("Fieldname {0} conflicting with meta object").format(fieldname))
+
+def clear_linked_doctype_cache():
+	frappe.cache().delete_value('linked_doctypes_without_ignore_user_permissions_enabled')

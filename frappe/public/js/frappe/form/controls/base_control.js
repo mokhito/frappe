@@ -14,8 +14,7 @@ frappe.ui.form.Control = Class.extend({
 		this.make();
 
 		// if developer_mode=1, show fieldname as tooltip
-		if(frappe.boot.user && frappe.boot.user.name==="Administrator" &&
-			frappe.boot.developer_mode===1 && this.$wrapper) {
+		if(frappe.boot.user && frappe.boot.developer_mode===1 && this.$wrapper) {
 			this.$wrapper.attr("title", __(this.df.fieldname));
 		}
 
@@ -101,7 +100,8 @@ frappe.ui.form.Control = Class.extend({
 	},
 	show_translatable_button(value) {
 		// Disable translation non-string fields or special string fields
-		if (!frappe.model.can_write('Translation')
+		if (!frappe.model
+			|| !frappe.model.can_write('Translation')
 			|| !this.frm
 			|| !this.doc
 			|| !this.df.translatable

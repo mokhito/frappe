@@ -2,8 +2,7 @@
  * frappe.views.ReportView
  */
 import DataTable from 'frappe-datatable';
-import 'frappe-datatable/dist/frappe-datatable.css';
-import '../../../../less/frappe-datatable.less';
+
 frappe.provide('frappe.views');
 
 frappe.views.ReportView = class ReportView extends frappe.views.ListView {
@@ -41,7 +40,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 	setup_result_area() {
 		super.setup_result_area();
-		this.$datatable_wrapper = $('<div class="data-table-wrapper">');
+		this.$datatable_wrapper = $('<div class="datatable-wrapper">');
 		this.$charts_wrapper = $('<div class="charts-wrapper">');
 		this.$result.append(this.$charts_wrapper);
 		this.$result.append(this.$datatable_wrapper);
@@ -132,7 +131,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		// indicate row update
 		const _flash_row = (rowIndex) => {
 			if (!flash_row) return;
-			const $row = this.$result.find(`.data-table-row[data-row-index="${rowIndex}"]`);
+			const $row = this.$result.find(`.dt-row[data-row-index="${rowIndex}"]`);
 			$row.addClass('row-update');
 			setTimeout(() => $row.removeClass('row-update'), 500);
 		};
@@ -148,16 +147,19 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		this.datatable = new DataTable(this.$datatable_wrapper[0], {
 			columns: this.columns,
 			data: this.get_data(values),
-			enableClusterize: true,
-			addCheckbox: this.can_delete,
-			takeAvailableSpace: true,
 			getEditor: this.get_editing_object.bind(this),
+			dynamicRowHeight: true,
+			checkboxColumn: true,
 			events: {
 				onRemoveColumn: (column) => {
 					this.remove_column_from_datatable(column);
 				},
 				onSwitchColumn: (column1, column2) => {
 					this.switch_column(column1, column2);
+				},
+				onCheckRow: () => {
+					const checked_items = this.get_checked_items();
+					this.toggle_actions_menu_button(checked_items.length > 0);
 				}
 			},
 			headerDropdown: [{
@@ -742,7 +744,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			name: title,
 			content: title,
 			width: (docfield ? cint(docfield.width) : null) || null,
-			editable: editable
+			editable: editable,
+			format: (value, row, column, data) => {
+				return frappe.format(value, column.docfield, { always_show_decimals: true }, data);
+			}
 		};
 	}
 
@@ -803,13 +808,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					name: d.name,
 					doctype: col.docfield.parent,
 					content: value,
-					editable: this.is_editable(col.docfield, d),
-					format: value => {
-						if (col.field === 'name') {
-							return frappe.utils.get_form_link(this.doctype, value, true);
-						}
-						return frappe.format(value, col.docfield, { always_show_decimals: true }, d);
-					}
+					editable: this.is_editable(col.docfield, d)
 				};
 			}
 			return {
@@ -875,6 +874,18 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		});
 	}
 
+	get_filters_html_for_print() {
+		const filters = this.filter_area.get();
+
+		return filters.map(f => {
+			const [doctype, fieldname, condition, value] = f;
+			if (condition !== '=') return '';
+
+			const label = frappe.meta.get_label(doctype, fieldname);
+			return `<h6>${__(label)}: ${value}</h6>`;
+		}).join('');
+	}
+
 	report_menu_items() {
 		let items = [
 			{
@@ -892,6 +903,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 						var title =  __(this.doctype);
 						frappe.render_grid({
 							title: title,
+							subtitle: this.get_filters_html_for_print(),
 							print_settings: print_settings,
 							columns: this.columns,
 							data: this.data

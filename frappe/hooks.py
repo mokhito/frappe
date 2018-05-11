@@ -134,14 +134,16 @@ scheduler_events = {
 		"frappe.email.doctype.email_account.email_account.notify_unreplied",
 		"frappe.oauth.delete_oauth2_data",
 		"frappe.integrations.doctype.razorpay_settings.razorpay_settings.capture_payment",
-		"frappe.twofactor.delete_all_barcodes_for_users"
+		"frappe.twofactor.delete_all_barcodes_for_users",
+		"frappe.integrations.doctype.gcalendar_settings.gcalendar_settings.sync"
 	],
 	"hourly": [
 		"frappe.model.utils.link_count.update_link_count",
 		'frappe.model.utils.user_settings.sync_user_settings',
 		"frappe.utils.error.collect_error_snapshots",
 		"frappe.desk.page.backups.backups.delete_downloadable_backups",
-		"frappe.limits.update_space_usage"
+		"frappe.limits.update_space_usage",
+		"frappe.desk.doctype.auto_repeat.auto_repeat.make_auto_repeat_entry",
 	],
 	"daily": [
 		"frappe.email.queue.clear_outbox",
@@ -185,7 +187,7 @@ sounds = [
 	{"name": "delete", "src": "/assets/frappe/sounds/delete.mp3", "volume": 0.05},
 	{"name": "click", "src": "/assets/frappe/sounds/click.mp3", "volume": 0.05},
 	{"name": "error", "src": "/assets/frappe/sounds/error.mp3", "volume": 0.1},
-	# {"name": "alert", "src": "/assets/frappe/sounds/alert.mp3"},
+	{"name": "alert", "src": "/assets/frappe/sounds/alert.mp3", "volume": 0.2},
 	# {"name": "chime", "src": "/assets/frappe/sounds/chime.mp3"},
 
 	# frappe.chat sounds
@@ -204,5 +206,7 @@ bot_parsers = [
 
 setup_wizard_exception = "frappe.desk.page.setup_wizard.setup_wizard.email_setup_wizard_exception"
 before_write_file = "frappe.limits.validate_space_limit"
+
+before_migrate = ['frappe.patches.v11_0.sync_user_permission_doctype_before_migrate.execute']
 
 otp_methods = ['OTP App','Email','SMS']

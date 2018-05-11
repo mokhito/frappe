@@ -45,6 +45,11 @@ premailer
 croniter
 googlemaps
 mycli
-dill
 braintree
 future
+passlib
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
+faker

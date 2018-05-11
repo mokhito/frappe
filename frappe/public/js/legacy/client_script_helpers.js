@@ -518,7 +518,7 @@ _f.Frm.prototype.update_in_all_rows = function(table_fieldname, fieldname, value
 		if(!cl[i][fieldname]) cl[i][fieldname] = value;
 	}
 	refresh_field("items");
-}
+};
 
 _f.Frm.prototype.get_sum = function(table_fieldname, fieldname) {
 	let sum = 0;

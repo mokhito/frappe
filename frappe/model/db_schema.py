@@ -194,7 +194,7 @@ class DbTable:
 	def get_column_definitions(self):
 		column_list = [] + default_columns
 		ret = []
-		for k in self.columns.keys():
+		for k in list(self.columns):
 			if k not in column_list:
 				d = self.columns[k].get_definition()
 				if d:
@@ -234,7 +234,7 @@ class DbTable:
 					'fieldtype': 'Text'
 				})
 
-		if not frappe.flags.in_install_db and frappe.flags.in_install != "frappe":
+		if not frappe.flags.in_install_db and (frappe.flags.in_install != "frappe" or frappe.flags.ignore_in_install):
 			custom_fl = frappe.db.sql("""\
 				SELECT * FROM `tabCustom Field`
 				WHERE dt = %s AND docstatus < 2""", (self.doctype,), as_dict=1)

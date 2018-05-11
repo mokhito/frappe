@@ -35,6 +35,10 @@ def get_list(doctype, fields=None, filters=None, order_by=None,
 		limit_start=limit_start, limit_page_length=limit_page_length, ignore_permissions=False)
 
 @frappe.whitelist()
+def get_count(doctype, filters=None, debug=False, cache=False):
+	return frappe.db.count(doctype, filters, debug, cache)
+
+@frappe.whitelist()
 def get(doctype, name=None, filters=None, parent=None):
 	'''Returns a document by name or filters
 
@@ -185,7 +189,9 @@ def save(doc):
 	if isinstance(doc, string_types):
 		doc = json.loads(doc)
 
-	doc = frappe.get_doc(doc).save()
+	doc = frappe.get_doc(doc)
+	doc.save()
+
 	return doc.as_dict()
 
 @frappe.whitelist()
@@ -321,6 +327,37 @@ def get_js(items):
 def get_time_zone():
 	'''Returns default time zone'''
 	return {"time_zone": frappe.defaults.get_defaults().get("time_zone")}
+
+@frappe.whitelist()
+def attach_file(filename=None, filedata=None, doctype=None, docname=None, folder=None, decode_base64=False, is_private=None, docfield=None):
+	'''Attach a file to Document (POST)
+
+	:param filename: filename e.g. test-file.txt
+	:param filedata: base64 encode filedata which must be urlencoded
+	:param doctype: Reference DocType to attach file to
+	:param docname: Reference DocName to attach file to
+	:param folder: Folder to add File into
+	:param decode_base64: decode filedata from base64 encode, default is False
+	:param is_private: Attach file as private file (1 or 0)
+	:param docfield: file to attach to (optional)'''
+
+	request_method = frappe.local.request.environ.get("REQUEST_METHOD")
+
+	if request_method.upper() != "POST":
+		frappe.throw(_("Invalid Request"))
+
+	doc = frappe.get_doc(doctype, docname)
+
+	if not doc.has_permission():
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+	f = save_file(filename, filedata, doctype, docname, folder, decode_base64, is_private, docfield)
+
+	if docfield and doctype:
+		doc.set(docfield, f.file_url)
+		doc.save()
+
+	return f.as_dict()
 
 def check_parent_permission(parent):
 	if parent:
