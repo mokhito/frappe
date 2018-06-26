@@ -327,18 +327,19 @@ frappe.ui.form.Dashboard = Class.extend({
 
 	update_heatmap: function(data) {
 		if(this.heatmap) {
-			this.heatmap.update(data);
+			this.heatmap.update({
+				dataPoints: data
+			});
 		}
 	},
 
 	// heatmap
 	render_heatmap: function() {
 		if(!this.heatmap) {
-			this.heatmap = new Chart("#heatmap-" + frappe.model.scrub(this.frm.doctype), {
+			this.heatmap = new frappeChart.Chart("#heatmap-" + frappe.model.scrub(this.frm.doctype), {
 				type: 'heatmap',
-				height: 120,
 				start: new Date(moment().subtract(1, 'year').toDate()),
-				count_label: "interactions",
+				countLabel: "interactions",
 				discreteDomains: 0,
 				data: {}
 			});
@@ -407,12 +408,11 @@ frappe.ui.form.Dashboard = Class.extend({
 		this.chart_area.empty().removeClass('hidden');
 		$.extend(args, {
 			type: 'line',
-			height: 140,
 			colors: ['green']
 		});
 		this.show();
 
-		this.chart = new Chart('.form-graph', args);
+		this.chart = new frappeChart.Chart('.form-graph', args);
 		if(!this.chart) {
 			this.hide();
 		}
