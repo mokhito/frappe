@@ -585,20 +585,13 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		</div>`;
 	}
 
-	toggle_loading(flag) {
-		this.toggle_message(flag, __('Loading') + '...');
-	}
+		$.extend(opts, {
+			height: 200
+		});
 
-	toggle_nothing_to_show(flag) {
-		this.toggle_message(flag, __('Nothing to show'));
-	}
-
-	toggle_message(flag, message) {
-		if (flag) {
-			this.$message.find('div').html(message);
-			this.$message.show();
-		} else {
-			this.$message.hide();
+		if(opts.data && opts.data.labels && opts.data.labels.length) {
+			this.chart_area.toggle(true);
+			this.chart = new frappeChart.Chart(".chart-area", opts);
 		}
 		this.$report.toggle(!flag);
 		this.$chart.toggle(!flag);
