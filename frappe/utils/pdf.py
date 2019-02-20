@@ -2,168 +2,170 @@
 # MIT License. See license.txt
 from __future__ import unicode_literals
 
-import pdfkit, os, frappe
+import os, frappe
 from frappe.utils import scrub_urls
 from frappe import _
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfFileReader
 import re
+from weasyprint import HTML
 
 def get_pdf(html, options=None, output = None):
-	html = scrub_urls(html)
-	html, options = prepare_options(html, options)
-	fname = os.path.join("/tmp", "frappe-pdf-{0}.pdf".format(frappe.generate_hash()))
+    html = scrub_urls(html)
+    html, options = prepare_options(html, options)
+    fname = os.path.join("/tmp", "frappe-pdf-{0}.pdf".format(frappe.generate_hash()))
 
-	options.update({
-		"disable-javascript": "",
-		"disable-local-file-access": "",
-	})
+    options.update({
+        "disable-javascript": "",
+        "disable-local-file-access": "",
+    })
 
-	try:
-		pdfkit.from_string(html, fname, options=options or {})
-		if output:
-			append_pdf(PdfFileReader(fname),output)
-		else:
-			with open(fname, "rb") as fileobj:
-				filedata = fileobj.read()
+    try:
+        html = HTML(string=html)
+        html.write_pdf(fname)
+        if output:
+            append_pdf(PdfFileReader(fname),output)
+        else:
+            with open(fname, "rb") as fileobj:
+                filedata = fileobj.read()
 
-	except IOError as e:
-		if ("ContentNotFoundError" in e.message
-			or "ContentOperationNotPermittedError" in e.message
-			or "UnknownContentError" in e.message
-			or "RemoteHostClosedError" in e.message):
+    except IOError as e:
+        if ("ContentNotFoundError" in e.message
+            or "ContentOperationNotPermittedError" in e.message
+            or "UnknownContentError" in e.message
+            or "RemoteHostClosedError" in e.message):
 
-			# allow pdfs with missing images if file got created
-			if os.path.exists(fname):
-				if output:
-					append_pdf(PdfFileReader(file(fname,"rb")),output)
-				else:
-					with open(fname, "rb") as fileobj:
-						filedata = fileobj.read()
+            # allow pdfs with missing images if file got created
+            if os.path.exists(fname):
+                if output:
+                    append_pdf(PdfFileReader(file(fname,"rb")),output)
+                else:
+                    with open(fname, "rb") as fileobj:
+                        filedata = fileobj.read()
 
-			else:
-				frappe.throw(_("PDF generation failed because of broken image links"))
-		else:
-			raise
+            else:
+                frappe.throw(_("PDF generation failed because of broken image links"))
+        else:
+            raise
 
-	finally:
-		cleanup(fname, options)
+    finally:
+        cleanup(fname, options)
 
-	if output:
-		return output
+    if output:
+        return output
 
-	return filedata
+    return filedata
 
 def append_pdf(input,output):
-	# Merging multiple pdf files
+    # Merging multiple pdf files
     [output.addPage(input.getPage(page_num)) for page_num in range(input.numPages)]
 
 def prepare_options(html, options):
-	if not options:
-		options = {}
+    if not options:
+        options = {}
 
-	options.update({
-		'print-media-type': None,
-		'background': None,
-		'images': None,
-		'quiet': None,
-		# 'no-outline': None,
-		'encoding': "UTF-8",
-		#'load-error-handling': 'ignore',
+    options.update({
+        'print-media-type': None,
+        'background': None,
+        'images': None,
+        'quiet': None,
+        # 'no-outline': None,
+        'encoding': "UTF-8",
+        #'load-error-handling': 'ignore',
 
-		# defaults
-		'margin-right': '0',
-		'margin-left': '0'
-	})
+        # defaults
+        'margin-right': '0',
+        'margin-left': '0'
+    })
 
-	html, html_options = read_options_from_html(html)
-	options.update(html_options or {})
+    html, html_options = read_options_from_html(html)
+    options.update(html_options or {})
 
-	# cookies
-	if frappe.session and frappe.session.sid:
-		options['cookie'] = [('sid', '{0}'.format(frappe.session.sid))]
+    # cookies
+    if frappe.session and frappe.session.sid:
+        options['cookie'] = [('sid', '{0}'.format(frappe.session.sid))]
 
-	# page size
-	if not options.get("page-size"):
-		options['page-size'] = frappe.db.get_single_value("Print Settings", "pdf_page_size") or "A4"
+    # page size
+    if not options.get("page-size"):
+        options['page-size'] = frappe.db.get_single_value("Print Settings", "pdf_page_size") or "A4"
 
-	return html, options
+    return html, options
 
 def read_options_from_html(html):
-	options = {}
-	soup = BeautifulSoup(html, "html5lib")
+    options = {}
+    soup = BeautifulSoup(html, "html5lib")
 
-	options.update(prepare_header_footer(soup))
+    options.update(prepare_header_footer(soup))
 
-	toggle_visible_pdf(soup)
+    toggle_visible_pdf(soup)
 
-	# use regex instead of soup-parser
-	for attr in ("margin-top", "margin-bottom", "margin-left", "margin-right", "page-size", "header-spacing"):
-		try:
-			pattern = re.compile(r"(\.print-format)([\S|\s][^}]*?)(" + str(attr) + r":)(.+)(mm;)")
-			match = pattern.findall(html)
-			if match:
-				options[attr] = str(match[-1][3]).strip()
-		except:
-			pass
+    # use regex instead of soup-parser
+    for attr in ("margin-top", "margin-bottom", "margin-left", "margin-right", "page-size", "header-spacing"):
+        try:
+            pattern = re.compile(r"(\.print-format)([\S|\s][^}]*?)(" + str(attr) + r":)(.+)(mm;)")
+            match = pattern.findall(html)
+            if match:
+                options[attr] = str(match[-1][3]).strip()
+        except:
+            pass
 
-	return soup.prettify(), options
+    return soup.prettify(), options
 
 def prepare_header_footer(soup):
-	options = {}
+    options = {}
 
-	head = soup.find("head").contents
-	styles = soup.find_all("style")
+    head = soup.find("head").contents
+    styles = soup.find_all("style")
 
-	bootstrap = frappe.read_file(os.path.join(frappe.local.sites_path, "assets/frappe/css/bootstrap.css"))
-	fontawesome = frappe.read_file(os.path.join(frappe.local.sites_path, "assets/frappe/css/font-awesome.css"))
+    bootstrap = frappe.read_file(os.path.join(frappe.local.sites_path, "assets/frappe/css/bootstrap.css"))
+    fontawesome = frappe.read_file(os.path.join(frappe.local.sites_path, "assets/frappe/css/font-awesome.css"))
 
-	# extract header and footer
-	for html_id in ("header-html", "footer-html"):
-		content = soup.find(id=html_id)
-		if content:
-			# there could be multiple instances of header-html/footer-html
-			for tag in soup.find_all(id=html_id):
-				tag.extract()
+    # extract header and footer
+    for html_id in ("header-html", "footer-html"):
+        content = soup.find(id=html_id)
+        if content:
+            # there could be multiple instances of header-html/footer-html
+            for tag in soup.find_all(id=html_id):
+                tag.extract()
 
-			toggle_visible_pdf(content)
-			html = frappe.render_template("templates/print_formats/pdf_header_footer.html", {
-				"head": head,
-				"styles": styles,
-				"content": content,
-				"html_id": html_id,
-				"bootstrap": bootstrap,
-				"fontawesome": fontawesome
-			})
+            toggle_visible_pdf(content)
+            html = frappe.render_template("templates/print_formats/pdf_header_footer.html", {
+                "head": head,
+                "styles": styles,
+                "content": content,
+                "html_id": html_id,
+                "bootstrap": bootstrap,
+                "fontawesome": fontawesome
+            })
 
-			# create temp file
-			fname = os.path.join("/tmp", "frappe-pdf-{0}.html".format(frappe.generate_hash()))
-			with open(fname, "wb") as f:
-				f.write(html.encode("utf-8"))
+            # create temp file
+            fname = os.path.join("/tmp", "frappe-pdf-{0}.html".format(frappe.generate_hash()))
+            with open(fname, "wb") as f:
+                f.write(html.encode("utf-8"))
 
-			# {"header-html": "/tmp/frappe-pdf-random.html"}
-			options[html_id] = fname
-		else:
-			if html_id == "header-html":
-				options["margin-top"] = "0"
-			elif html_id == "footer-html":
-				options["margin-bottom"] = "0"
+            # {"header-html": "/tmp/frappe-pdf-random.html"}
+            options[html_id] = fname
+        else:
+            if html_id == "header-html":
+                options["margin-top"] = "0"
+            elif html_id == "footer-html":
+                options["margin-bottom"] = "0"
 
-	return options
+    return options
 
 def cleanup(fname, options):
-	if os.path.exists(fname):
-		os.remove(fname)
+    if os.path.exists(fname):
+        os.remove(fname)
 
-	for key in ("header-html", "footer-html"):
-		if options.get(key) and os.path.exists(options[key]):
-			os.remove(options[key])
+    for key in ("header-html", "footer-html"):
+        if options.get(key) and os.path.exists(options[key]):
+            os.remove(options[key])
 
 def toggle_visible_pdf(soup):
-	for tag in soup.find_all(attrs={"class": "visible-pdf"}):
-		# remove visible-pdf class to unhide
-		tag.attrs['class'].remove('visible-pdf')
+    for tag in soup.find_all(attrs={"class": "visible-pdf"}):
+        # remove visible-pdf class to unhide
+        tag.attrs['class'].remove('visible-pdf')
 
-	for tag in soup.find_all(attrs={"class": "hidden-pdf"}):
-		# remove tag from html
-		tag.extract()
+    for tag in soup.find_all(attrs={"class": "hidden-pdf"}):
+        # remove tag from html
+        tag.extract()
