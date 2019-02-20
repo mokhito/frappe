@@ -8,26 +8,36 @@ from frappe import _
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfFileReader
 import re
-from weasyprint import HTML
+from subprocess import Popen
+from subprocess import PIPE
 
 def get_pdf(html, options=None, output = None):
     html = scrub_urls(html)
     html, options = prepare_options(html, options)
-    fname = os.path.join("/tmp", "frappe-pdf-{0}.pdf".format(frappe.generate_hash()))
+    file_hash = frappe.generate_hash()
+    html_fname = os.path.join("/tmp", "frappe-html-{0}.html".format(file_hash))
+    pdf_fname = os.path.join("/tmp", "frappe-pdf-{0}.pdf".format(file_hash))
 
-    options.update({
-        "disable-javascript": "",
-        "disable-local-file-access": "",
-    })
+    command = 'google-chrome --headless --disable-gpu --print-to-pdf={0} file://{1}'.format(pdf_fname, html_fname)
+
+    with open(html_fname, "w") as fileobj:
+        fileobj.write(html)
 
     try:
-        html = HTML(string=html)
-        html.write_pdf(fname)
-        if output:
-            append_pdf(PdfFileReader(fname),output)
+        p = Popen(command, shell=True, stdout=PIPE, stderr=PIPE, close_fds=True)
+        stdout, stderr = p.communicate()
+        retcode = p.returncode
+        
+        if retcode == 0:
+            if output:
+              append_pdf(PdfFileReader(pdf_fname),output)
+            else:
+                with open(pdf_fname, "rb") as fileobj:
+                    filedata = fileobj.read()
+        elif retcode < 0:
+            raise Exception("Terminated by signal: ", -retcode)
         else:
-            with open(fname, "rb") as fileobj:
-                filedata = fileobj.read()
+            raise Exception(stderr)
 
     except IOError as e:
         if ("ContentNotFoundError" in e.message
@@ -36,11 +46,11 @@ def get_pdf(html, options=None, output = None):
             or "RemoteHostClosedError" in e.message):
 
             # allow pdfs with missing images if file got created
-            if os.path.exists(fname):
+            if os.path.exists(pdf_fname):
                 if output:
-                    append_pdf(PdfFileReader(file(fname,"rb")),output)
+                    append_pdf(PdfFileReader(file(pdf_fname,"rb")),output)
                 else:
-                    with open(fname, "rb") as fileobj:
+                    with open(pdf_fname, "rb") as fileobj:
                         filedata = fileobj.read()
 
             else:
@@ -49,7 +59,8 @@ def get_pdf(html, options=None, output = None):
             raise
 
     finally:
-        cleanup(fname, options)
+        cleanup(html_fname, options)
+        cleanup(pdf_fname, options)
 
     if output:
         return output
