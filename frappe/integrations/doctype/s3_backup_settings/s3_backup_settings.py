@@ -36,7 +36,8 @@ class S3BackupSettings(Document):
 		try:
 			conn.create_bucket(Bucket=bucket_lower)
 		except ClientError:
-			frappe.throw(_("Unable to create bucket: {0}. Change it to a more unique name.").format(bucket_lower))
+			#frappe.throw(_("Unable to create bucket: {0}. Change it to a more unique name.").format(bucket_lower))
+            print("Bucket already exists.")
 
 
 @frappe.whitelist()
