@@ -18,7 +18,8 @@ def get_pdf(html, options=None, output = None):
     html_fname = os.path.join("/tmp", "frappe-html-{0}.html".format(file_hash))
     pdf_fname = os.path.join("/tmp", "frappe-pdf-{0}.pdf".format(file_hash))
 
-    command = 'google-chrome --headless --disable-gpu --print-to-pdf={0} file://{1}'.format(pdf_fname, html_fname)
+    #command = 'google-chrome --headless --disable-gpu --print-to-pdf={0} file://{1}'.format(pdf_fname, html_fname)
+    command = 'chrome-headless-render-pdf --paper-width=8.3 --paper-height=11.7 --no-margins --pdf={0} --url=file://{1}'.format(pdf_fname, html_fname)
 
     with open(html_fname, "w") as fileobj:
         fileobj.write(html)
